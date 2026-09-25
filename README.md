@@ -9,6 +9,10 @@ independent of the API and Web repositories.
 and stops cleanly on SIGINT or SIGTERM. Set `ENGINE_LOG_LEVEL` to `debug`,
 `info`, `warn`, or `error`; the default is `info`.
 
+The repo has no runtime dependency on Web or API checkouts. From the repository
+root, `make run` starts the worker; `make fmt`, `make test`, `make vet`, and
+`make build` are the corresponding focused Go workflows.
+
 This foundation does not consume Kafka messages or execute learner code.
 
 ## Execution domain
@@ -32,3 +36,7 @@ Configure `ENGINE_KAFKA_BROKERS`, `ENGINE_KAFKA_GROUP_ID`,
 with `ENGINE_KAFKA_RETRY_BACKOFF`. TLS and SASL are injected when constructing
 the transport. The worker binary is not wired to this transport yet because
 request/result codecs and runner composition require the shared contract fixture.
+
+Engine work can proceed independently on runner behavior and transport
+adapters. Do not claim end-to-end API execution until API event publishing, the
+shared fixtures, and worker composition are implemented together.
