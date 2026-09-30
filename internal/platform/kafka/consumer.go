@@ -147,6 +147,15 @@ func (c *Consumer) Handle(ctx context.Context, request Record) error {
 		return c.quarantineAndCommit(ctx, request, failure(execution.FailurePermanentPlatform, err))
 	}
 	if err := c.results.Publish(ctx, encoded); err != nil {
+		if ctx.Err() != nil {
+			return failure(execution.FailureTransientPlatform, ctx.Err())
+		}
+		if class, ok := execution.FailureClassOf(err); ok {
+			if class == execution.FailureTransientPlatform {
+				return err
+			}
+			return c.quarantineAndCommit(ctx, request, failure(execution.FailurePermanentPlatform, err))
+		}
 		return transientIfUnclassified(err)
 	}
 	if err := c.committer.Commit(ctx, request); err != nil {

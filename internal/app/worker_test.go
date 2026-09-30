@@ -24,15 +24,19 @@ func (w *startupWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
-func TestRunWaitsForCancellationAndLogsLifecycle(t *testing.T) {
+func TestWorkerRunWaitsForCancellationAndLogsLifecycle(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	output := &startupWriter{started: make(chan struct{})}
 	logger := slog.New(slog.NewJSONHandler(output, nil))
+	worker, err := NewWorker(logger)
+	if err != nil {
+		t.Fatalf("NewWorker() error = %v", err)
+	}
 	done := make(chan struct{})
 	go func() {
-		Run(ctx, logger)
+		worker.Run(ctx)
 		close(done)
 	}()
 
@@ -76,6 +80,12 @@ func TestRunWaitsForCancellationAndLogsLifecycle(t *testing.T) {
 	}
 	if got := records[1]["cause"]; got != context.Canceled.Error() {
 		t.Errorf("shutdown cause = %v, want %q", got, context.Canceled)
+	}
+}
+
+func TestNewWorkerRequiresLogger(t *testing.T) {
+	if _, err := NewWorker(nil); err == nil {
+		t.Fatal("NewWorker(nil) succeeded, want an error")
 	}
 }
 

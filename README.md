@@ -9,11 +9,20 @@ independent of the API and Web repositories.
 and stops cleanly on SIGINT or SIGTERM. Set `ENGINE_LOG_LEVEL` to `debug`,
 `info`, `warn`, or `error`; the default is `info`.
 
-The repo has no runtime dependency on Web or API checkouts. From the repository
-root, `make run` starts the worker; `make fmt`, `make test`, `make vet`, and
-`make build` are the corresponding focused Go workflows.
+The repo has no runtime dependency on Web or API checkouts. `Makefile` owns the
+developer commands: `make run`, `make fmt`, `make fmt-check`, `make test`,
+`make test-race`, `make vet`, `make build`, and `make check-ci`. `make fmt`
+rewrites Go files; `make fmt-check` is read-only, and `make check-ci` runs the
+complete independent CI gate.
 
-This foundation does not consume Kafka messages or execute learner code.
+GitHub Actions runs gofmt verification, unit and race-enabled tests, `go vet`,
+worker build, and a module-graph check without checking out API or Web. The
+protocol boundary remains raw Kafka records plus injected codecs. Wire fixtures
+and codecs wait for an API-owned versioned contract; no concrete runner or
+sandbox is part of this foundation. See
+[`docs/execution-contract-boundary.md`](docs/execution-contract-boundary.md).
+
+The worker process does not consume Kafka messages or execute learner code.
 
 ## Execution domain
 
@@ -25,12 +34,15 @@ application wiring are not implemented yet. The next plan must map the
 contracts through codecs backed by shared fixtures, then provide source and
 grader data to runners without requiring sibling repository checkouts.
 
-The Kafka package includes a `kafka-go` transport and a per-record processor.
-It publishes before committing and retries the same transiently failing record
-before fetching another. This preserves per-partition commit order and remains
-at-least-once, so result consumers must tolerate duplicates.
+The Kafka package includes a `kafka-go` transport and a per-record processor,
+but `cmd/worker` does not wire or start them. The processor publishes before
+committing and retries the same transiently failing record before fetching
+another. This preserves per-partition commit order and remains at-least-once,
+so result consumers must tolerate duplicates.
 
-Configure `ENGINE_KAFKA_BROKERS`, `ENGINE_KAFKA_GROUP_ID`,
+The `ENGINE_KAFKA_*` settings are optional while `cmd/worker` is not wired to
+Kafka. They become mandatory when real Kafka consumption is composed. The
+available settings are `ENGINE_KAFKA_BROKERS`, `ENGINE_KAFKA_GROUP_ID`,
 `ENGINE_KAFKA_REQUEST_TOPIC`, `ENGINE_KAFKA_RESULT_TOPIC`, and
 `ENGINE_KAFKA_QUARANTINE_TOPIC`; retry backoff defaults to 250ms and can be set
 with `ENGINE_KAFKA_RETRY_BACKOFF`. TLS and SASL are injected when constructing

@@ -20,8 +20,14 @@ func main() {
 	}
 
 	logger := logging.New(cfg.LogLevel, os.Stdout)
+	worker, err := app.NewWorker(logger)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "worker composition: %v\n", err)
+		os.Exit(2)
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	app.Run(ctx, logger)
+	worker.Run(ctx)
 }
