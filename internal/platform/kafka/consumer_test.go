@@ -250,6 +250,21 @@ func TestHandlePublishFailureLeavesRequestUncommitted(t *testing.T) {
 	}
 }
 
+func TestHandleQuarantinesPermanentResultPublishFailureBeforeCommit(t *testing.T) {
+	services := validServices()
+	services.resultErr, _ = execution.NewFailureError(execution.FailurePermanentPlatform, errors.New("result topic unavailable"))
+	consumer := newTestConsumer(t, services)
+	if err := consumer.Handle(context.Background(), testRecord()); err != nil {
+		t.Fatalf("Handle() error = %v", err)
+	}
+	if got, want := services.events, []string{"decode", "run", "encode", "publish-result", "quarantine", "commit"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("events = %v, want %v", got, want)
+	}
+	if got := execution.PolicyFor(services.quarantineCause); got != execution.PolicyNoRetry {
+		t.Errorf("quarantine cause policy = %q, want %q", got, execution.PolicyNoRetry)
+	}
+}
+
 func TestHandleTransientEncodeFailureLeavesRequestUncommitted(t *testing.T) {
 	services := validServices()
 	services.encodeErr, _ = execution.NewFailureError(execution.FailureTransientPlatform, errors.New("encoder unavailable"))
